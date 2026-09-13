@@ -1,0 +1,15 @@
+{
+  "name": "spexcode",
+  "description": "SpexCode agent add-ons.",
+  "owner": {
+    "name": "SpexCode",
+    "url": "https://spexcode.net"
+  },
+  "plugins": [
+    {
+      "name": "atlas",
+      "source": "./claude-code/atlas",
+      "description": "Draw a spec atlas for a repository: choose the spec nodes worth a picture and draw each one's diagram with SpexCode, checked until it passes, then hand over the whole tree as one page."
+    }
+  ]
+}
