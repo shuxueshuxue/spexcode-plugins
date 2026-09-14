@@ -9,7 +9,7 @@ description: "Use when the user wants the atlas of a repository or its spec tree
 
 This skill draws with SpexCode's command line and needs nothing installed or configured on this machine.
 
-- Run SpexCode through npx: `npx -y --registry=https://registry.npmjs.org -p spexcode@next spex <command>` (Node 22 or newer). Wherever a step below says
+- Run SpexCode through npx: `npx -y --registry=https://registry.npmjs.org -p spexcode spex <command>` (Node 22 or newer). Wherever a step below says
   `spex …`, run it that way; a `spex` already on the PATH works the same.
 - A diagram draws one node of the repository's spec tree, the `.spec/` folder. If the repository has none,
   `spex init --pure --title <the project's name>` plants one and stops there: `.spec/spexcode.json` and a root
@@ -83,7 +83,7 @@ This skill is the campaign around that loop.
 
 ## Hand over the page
 
-`npx -y --registry=https://registry.npmjs.org -p spexcode@next -p @spexcode/spec-dashboard@next spex graph --public --html spexcode-atlas.html` writes the whole tree — every body and
+`npx -y --registry=https://registry.npmjs.org -p spexcode -p @spexcode/spec-dashboard spex graph --public --html spexcode-atlas.html` writes the whole tree — every body and
 every picture — as one self-contained page that opens in any browser, straight from disk. Offer it with the report;
 it is a product of the tree, not part of it, so leave it uncommitted.
 
