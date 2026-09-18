@@ -31,8 +31,9 @@ When the job is a whole repository — read it into a spec tree, draw its pictur
 (提取 .spec、画架构图、做成可浏览网页) — do not work through it turn by turn: run it as one dynamic workflow.
 `${ZCODE_SKILL_DIR}/atlas.dwf.ts` is that workflow, already written and checked by the workflow compiler.
 
-1. Read the script. Set `LANGUAGE` to the language the user is speaking and rewrite each `phase("...")` name into
-   that language. Change nothing else.
+1. Read the script. Set `LANGUAGE` to the language the user is speaking, rewrite each `phase("...")` name into
+   that language, and translate the `SAID` labels beside `LANGUAGE` into it — the report is assembled by the
+   script, so those fixed words are the one part no prompt's language instruction reaches. Change nothing else.
 2. Submit it with the `CreateWorkflow` tool as its `script` — not the legacy `Workflow` tool, not `Agent`.
 3. The run surveys the repository and writes the spec for each part in parallel; gates on `spex spec lint` until it
    reports no errors and 90% coverage; chooses the nodes worth a picture, draws them in parallel and gates each on

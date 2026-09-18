@@ -1,9 +1,36 @@
 // SpexCode atlas, as one ZCode dynamic workflow: read this repository into a SpexCode spec tree (.spec/), draw an
 // archify diagram for every node worth one, and hand over the whole tree as one browsable page. SpexCode runs
-// through npx, so nothing is installed. Submit this script with CreateWorkflow as it stands, after two edits only:
-// set LANGUAGE to the language the user is speaking, and rewrite each phase("...") name into that language.
+// through npx, so nothing is installed. Submit this script with CreateWorkflow as it stands, after three edits only:
+// set LANGUAGE to the language the user is speaking, rewrite each phase("...") name into that language, and
+// translate the SAID labels below into it.
 
 const LANGUAGE = "English";
+// The report is assembled HERE, not written by an agent, so its fixed words are the one part of the handover no
+// `${LANGUAGE}` in a prompt can reach: a tree written entirely in one language was still handed over under an
+// English heading. They sit beside LANGUAGE because they are translated by the same edit.
+const SAID = {
+  title: (coverage: number, governed: number, ok: number, all: number) =>
+    `Spec atlas: ${coverage}% of ${governed} source files covered, ${ok} of ${all} pictures pass`,
+  gate: (verdict: string, errors: number, coverage: number, floor: number) =>
+    `Spec gate: ${verdict} — ${errors} lint errors, coverage ${coverage}% (floor ${floor}%).`,
+  passed: "passed",
+  notPassed: "not passed",
+  pictures: "Pictures",
+  skipped: "Skipped",
+  claims: "Claims the code does not bear out",
+  checkPasses: "check passes",
+  checkFails: "check still fails",
+  noneFound: "none found",
+  pageIs: (page: string) => `The page is ${page}; it is not committed.`,
+  pageFailed: "The page could not be written:",
+  committed: "The spec tree and its diagrams are committed under .spec/.",
+  nothingToCommit: "Nothing under .spec/ needed a commit.",
+  reportTitle: "Atlas report",
+  plannerMissed: "the planner named a node that does not exist, twice",
+  conclusion: (coverage: number, governed: number, errors: number, ok: number, all: number, note: string) =>
+    `The spec tree covers ${coverage}% of ${governed} source files with ${errors} lint errors; ` +
+    `${ok} of ${all} diagrams pass their check. ${note}`,
+};
 // npx reads npm's config from the working directory, and that is the repository being drawn: a monorepo
 // pinning an internal registry sends this fetch to a host that has never heard of SpexCode. Name the public
 // registry for these fetches only — it says nothing about how that repository installs its own dependencies.
@@ -221,7 +248,8 @@ let choice = await planner.ask<Choice>(
   "Choose which nodes of this SpexCode spec tree deserve a diagram. A node whose body explains how its children fit " +
     "together gets an architecture diagram of those children; a node whose body is a process, a protocol, a data " +
     "path or a lifecycle gets that kind instead. Skip leaves with nothing to show and nodes that already have a " +
-    "diagram.json beside their spec.md. Always include the root node. A node's id is its folder's name. The nodes:\n" +
+    "diagram.json beside their spec.md. Always include the root node. A node's id is its folder's name. Write every " +
+    `reason for skipping in ${LANGUAGE}. The nodes:\n` +
     specs.join("\n"),
 );
 if (unknownIds(choice).length) {
@@ -234,7 +262,7 @@ const drawnIds = new Set<string>();
 const picks = choice.picks.filter((pick) => known.has(pick.id) && !drawnIds.has(pick.id) && Boolean(drawnIds.add(pick.id)));
 const skipped = [
   ...choice.skipped,
-  ...unknownIds(choice).map((id) => ({ id, why: "the planner named a node that does not exist, twice" })),
+  ...unknownIds(choice).map((id) => ({ id, why: SAID.plannerMissed })),
 ];
 log(`Drawing ${picks.length} pictures, skipping ${skipped.length} nodes`);
 
@@ -277,39 +305,37 @@ phase("Build the browsable page and hand it over");
 await world.run("git", ["add", "--", ".spec"]);
 const lastCommit = await world.run("git", ["commit", "-m", "spec: SpexCode atlas diagrams", "--", ".spec"]);
 const page = await world.run("npx", [...SPEX_WITH_PAGE, "graph", "--public", "--html", PAGE], { timeoutMs: NPX_TIMEOUT });
-let pageNote = `The page is ${PAGE}; it is not committed.`;
+let pageNote = SAID.pageIs(PAGE);
 if (page.exitCode === 0) {
   await artifact.file("atlas", PAGE, { title: "Spec atlas", description: "The whole spec tree with its pictures, one self-contained page." });
 } else {
-  pageNote = `The page could not be written:\n${tail(page.stderr || page.stdout)}`;
+  pageNote = `${SAID.pageFailed}\n${tail(page.stderr || page.stdout)}`;
 }
 const drawnOk = drawn.filter((d) => d.passed);
 const verifiedClaims = claims.filter((c) => c.status === "verified");
 await artifact.markdown(
   "report",
   [
-    `# Spec atlas: ${gate.coverage}% of ${gate.governed} source files covered, ${drawnOk.length} of ${drawn.length} pictures pass`,
+    `# ${SAID.title(gate.coverage, gate.governed, drawnOk.length, drawn.length)}`,
     "",
-    `Spec gate: ${passed(gate) ? "passed" : "not passed"} — ${gate.errorCount} lint errors, coverage ${gate.coverage}% (floor ${COVERAGE_FLOOR}%).`,
+    SAID.gate(passed(gate) ? SAID.passed : SAID.notPassed, gate.errorCount, gate.coverage, COVERAGE_FLOOR),
     "",
-    "## Pictures",
-    ...drawn.map((d) => `- ${d.id} (${d.kind}): ${d.passed ? "check passes" : "check still fails"}`),
+    `## ${SAID.pictures}`,
+    ...drawn.map((d) => `- ${d.id} (${d.kind}): ${d.passed ? SAID.checkPasses : SAID.checkFails}`),
     "",
-    "## Skipped",
+    `## ${SAID.skipped}`,
     ...skipped.map((s) => `- ${s.id}: ${s.why}`),
     "",
-    "## Claims the code does not bear out",
-    ...(claims.length ? claims.map((c) => `- ${c.node} (${c.status}): ${c.claim} — ${c.evidence}`) : ["- none found"]),
+    `## ${SAID.claims}`,
+    ...(claims.length ? claims.map((c) => `- ${c.node} (${c.status}): ${c.claim} — ${c.evidence}`) : [`- ${SAID.noneFound}`]),
     "",
     pageNote,
-    lastCommit.exitCode === 0 || firstCommit.exitCode === 0 ? "The spec tree and its diagrams are committed under .spec/." : "Nothing under .spec/ needed a commit.",
+    lastCommit.exitCode === 0 || firstCommit.exitCode === 0 ? SAID.committed : SAID.nothingToCommit,
   ].join("\n"),
-  { title: "Atlas report" },
+  { title: SAID.reportTitle },
 );
 return {
-  conclusion:
-    `The spec tree covers ${gate.coverage}% of ${gate.governed} source files with ${gate.errorCount} lint errors; ` +
-    `${drawnOk.length} of ${drawn.length} diagrams pass their check. ${pageNote}`,
+  conclusion: SAID.conclusion(gate.coverage, gate.governed, gate.errorCount, drawnOk.length, drawn.length, pageNote),
   findings: claims.map((c) => ({ where: c.node, what: c.claim, evidence: c.evidence, status: c.status, severity: "medium" as const })),
   verified: [
     "spex spec lint --json after every repair round (errors and coverage)",
