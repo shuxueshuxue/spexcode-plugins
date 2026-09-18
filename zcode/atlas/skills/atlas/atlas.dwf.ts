@@ -4,8 +4,11 @@
 // set LANGUAGE to the language the user is speaking, and rewrite each phase("...") name into that language.
 
 const LANGUAGE = "English";
-const SPEX = ["-y", "-p", "spexcode@next", "spex"];
-const SPEX_WITH_PAGE = ["-y", "-p", "spexcode@next", "-p", "@spexcode/spec-dashboard@next", "spex"];
+// npx reads npm's config from the working directory, and that is the repository being drawn: a monorepo
+// pinning an internal registry sends this fetch to a host that has never heard of SpexCode. Name the public
+// registry for these fetches only — it says nothing about how that repository installs its own dependencies.
+const SPEX = ["-y", "--registry=https://registry.npmjs.org", "-p", "spexcode", "spex"];
+const SPEX_WITH_PAGE = ["-y", "--registry=https://registry.npmjs.org", "-p", "spexcode", "-p", "@spexcode/spec-dashboard", "spex"];
 const PAGE = "spexcode-atlas.html";
 const COVERAGE_FLOOR = 90;
 const REPAIR_ROUNDS = 4;
@@ -121,20 +124,25 @@ async function readGate(): Promise<Gate> {
 }
 const passed = (gate: Gate) => gate.errorCount === 0 && gate.governed > 0 && gate.coverage >= COVERAGE_FLOOR;
 
+// Read-only is stated in WORDS, not as a tool profile: the second argument is the persona's instructions,
+// and ZCode's authoring guide pins that no `tools:`, `model:` or `"readonly"` appears in a workflow script.
+const READER =
+  "You only read. Inspect the repository and answer the question; do not create, edit or delete any file, and " +
+  "do not run a command that writes. If answering would require a change, say so rather than making it.";
 const WRITER =
   "You write SpexCode spec nodes. A node is a folder under .spec/ holding a spec.md: YAML frontmatter with title, " +
   "desc, `code:` listing AT MOST ONE file the node governs, and `related:` listing the other files it covers or " +
   "references; then a markdown body that states the part's responsibility, its invariants and how its pieces fit, " +
   "as the code stands today — no history, no plans. A child node is a subfolder with its own spec.md. Run " +
-  "`npx -y -p spexcode@next spex guide spec` once for the full format. Write only under .spec/, never touch source " +
+  "`npx -y --registry=https://registry.npmjs.org -p spexcode spex guide spec` once for the full format. Write only under .spec/, never touch source " +
   `code, and write every title, desc and body in ${LANGUAGE}; ids, paths and frontmatter keys stay ascii. If an ` +
   "instruction cannot be followed, escalate and say so plainly rather than working around it.";
 const CARTOGRAPHER =
   "You draw one SpexCode node's diagram: a diagram.json beside its spec.md, an archify IR. Run " +
-  "`npx -y -p spexcode@next spex guide diagram` once for the format, the rules and the loop. Start from " +
-  "`npx -y -p spexcode@next spex diagram scaffold <node> --type <kind>`, connect what the node's body says is " +
+  "`npx -y --registry=https://registry.npmjs.org -p spexcode spex guide diagram` once for the format, the rules and the loop. Start from " +
+  "`npx -y --registry=https://registry.npmjs.org -p spexcode spex diagram scaffold <node> --type <kind>`, connect what the node's body says is " +
   "connected and name each edge by what crosses it, group with regions, add cards, and write meta.note — what was " +
-  "folded, which relation is an inference. Repair from `npx -y -p spexcode@next spex diagram check <node>` until it " +
+  "folded, which relation is an inference. Repair from `npx -y --registry=https://registry.npmjs.org -p spexcode spex diagram check <node>` until it " +
   "passes. Put no self-moving numbers on the picture (node counts, drift, import counts). Edit only that node's " +
   `diagram.json, and write its visible text in ${LANGUAGE}. If the check cannot pass, escalate and say why.`;
 
@@ -150,7 +158,7 @@ if (npx.exitCode !== 0) throw new Error(`SpexCode did not start through npx:\n${
 const existing = await files.glob(".spec/**/spec.md");
 let project = "";
 if (existing.length === 0) {
-  const surveyor = agent("Repository surveyor", { tools: "readonly" });
+  const surveyor = agent("Repository surveyor", READER);
   const survey = await surveyor.ask<Survey>(
     "Read this repository and plan its SpexCode spec tree. Decide which directories hold its source (governedRoots) " +
       "and which file extensions count as source, name what should stay out of coverage (vendored, generated, build " +
@@ -208,7 +216,7 @@ const specs = await files.glob(".spec/**/spec.md");
 // A node's id is its folder's name; a pick that names anything else would send a cartographer after nothing.
 const known = new Set(specs.map((path) => path.split("/").slice(-2, -1).join("")));
 const unknownIds = (c: Choice) => c.picks.map((pick) => pick.id).filter((id) => !known.has(id));
-const planner = agent("Atlas planner", { tools: "readonly" });
+const planner = agent("Atlas planner", READER);
 let choice = await planner.ask<Choice>(
   "Choose which nodes of this SpexCode spec tree deserve a diagram. A node whose body explains how its children fit " +
     "together gets an architecture diagram of those children; a node whose body is a process, a protocol, a data " +
@@ -247,7 +255,7 @@ const drawn = await Promise.all(
 );
 
 phase("Have an independent reader check the tree against the code");
-const reader = agent("Independent reader", { tools: "readonly" });
+const reader = agent("Independent reader", READER);
 const reading = await reader.ask<Reading>(
   `Read the root node .spec/${project || "<the one folder under .spec>"}/spec.md and each top-level part's spec.md, and ` +
     "check what they claim against the code. List the claims the code does not bear out, with the evidence; an empty " +
@@ -255,7 +263,7 @@ const reading = await reader.ask<Reading>(
 );
 const claims = await Promise.all(
   reading.claims.map(async (claim, index) => {
-    const confirmation = await agent(`Confirmer ${index + 1}`, { tools: "readonly" }).ask<Confirmation>(
+    const confirmation = await agent(`Confirmer ${index + 1}`, READER).ask<Confirmation>(
       `Reproduce this finding from its evidence alone: read the code it cites.\n${JSON.stringify(claim)}`,
     );
     const status: "verified" | "unconfirmed" = confirmation.reproduced ? "verified" : "unconfirmed";
