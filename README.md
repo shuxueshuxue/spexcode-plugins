@@ -7,8 +7,8 @@ products load. Every package runs SpexCode through `npx`, so a user installs not
 
 | Folder | Host | What the host gets | Install it |
 | --- | --- | --- | --- |
-| `claude-code/atlas` | Claude Code | a plugin with the `atlas` skill | `claude plugin marketplace add shuxueshuxue/spexcode-plugins` then `claude plugin install atlas@spexcode` |
-| `codex/plugins/atlas` | Codex | a plugin with the `atlas` skill | `codex plugin marketplace add shuxueshuxue/spexcode-plugins` then `codex plugin add atlas@spexcode` |
+| `claude-code/atlas` | Claude Code | a plugin with the `atlas` skill, invoked as `/atlas` | `claude plugin marketplace add shuxueshuxue/spexcode-plugins` then `claude plugin install atlas@spexcode` |
+| `codex/plugins/atlas` | Codex | a plugin with the `atlas` skill, invoked as `/atlas` | `codex plugin marketplace add shuxueshuxue/spexcode-plugins` then `codex plugin add atlas@spexcode` |
 | `zcode/atlas` | ZCode | a plugin with the `atlas` skill, plus `atlas.dwf.ts`: the whole job as one dynamic workflow | list the folder in `plugins.dirs` |
 | `gugu/spexcode-atlas` | gugu | a tab extension: the spec tree with each node's diagram drawn in the tab, and a button that starts an agent on the atlas | Settings → Extensions → Install, pick the folder |
 | `penguin/use-spexcode` | PenguinHarness | a library plugin with the `atlas` skill | upload `skills/atlas` as a zip, or copy it into an agent's `agent_state/skills/` |
@@ -26,6 +26,12 @@ a skill that is four, so this directory is mirrored to
 nothing else. `.github/workflows/distribution-sync.yml` keeps the two equal and runs only when this directory
 changes; it regenerates first and fails if what is committed differs from what the generator writes. Edit here,
 never there.
+
+Claude Code and Codex both expose a plugin skill as a native slash invocation, so the installed `atlas` skill is
+started by typing `/atlas`; this package does not add a second Claude `commands/` file or a Codex `prompts/` file.
+ZCode has no equivalent slash-command package surface here, so its distribution keeps the `plugins.dirs` plugin and
+the hand-written `atlas.dwf.ts` workflow. gugu is a tab extension with its own Draw button, and PenguinHarness reads
+the skill from its `agent_state/skills/` library path; neither host offers a corresponding `/atlas` entrypoint.
 
 **Generated or written by hand.** `npm run build:distribution` writes every manifest, every `SKILL.md`, the gugu tab's
 prompt and its copies of archify (`archify.js`, `focus.js`, `diagram.css`) from their sources: the atlas preset in
